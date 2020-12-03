@@ -1,0 +1,51 @@
+- hosts: docker_nodes
+  vars:
+          docker_image: httpd
+          baseurl_docker: https:///download.docker.com/linux/centos/7/x86_64/stable/ 
+          ports_expose: 8081:80
+          httpd_port: 80
+          firewall_port: 8081/tcp
+          volume_docker: /root/index.html:/usr/local/apache2/htdocs/index.html
+          page_source: /root/html/index.html
+          page_dest: /root/index.html      
+  
+  tasks:
+          - name: Configuring Yum repository for Docker
+            yum_repository:
+                    name: Docker_Repo
+                    description: Yum repository for Docker-ce
+                    baseurl: "{{baseurl_docker}}"
+                    gpgcheck: no
+
+          - name: Installing Docker-CE 
+            shell: dnf install docker-ce --nobest  -y
+
+          - name: Starting Docker Service
+            service:
+                    name: docker
+                    state: started
+                    enabled: yes
+          - name: Installing Docker-py Dependency
+            pip:
+                    name: docker-py
+
+          - name: Copying the HTML file
+            copy:
+                    src: "{{page_source}}"
+                    dest: "{{page_dest}}"
+
+          - name: Confuring Httpd webserver on Docker 
+            docker_container:
+                    name: Httpd_webserver
+                    image: "{{docker_image}}"
+                    state: started
+                    exposed_ports: "{{httpd_port}}"
+                    ports: "{{ports_expose}}"
+                    volumes: "{{volume_docker}}"     
+          
+          - name: Setting up Firewall rule 
+            firewalld:
+                    port: "{{firewall_port}}"
+                    state: enabled                  
+
+
